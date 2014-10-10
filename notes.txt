@@ -1,0 +1,104 @@
+TODO:
+Figure out how to properly initialize voltdb.
+
+Hardcode update catalog and query nodes for insert and select.
+Run insert and select.
+
+Map catalog for real.
+Map nodes for real.
+
+Postgres:
+
+In parsenodes.h and plannodes.h:
+
+Target Entry: cols in select clause.
+Var: Variable type.
+    Varno: index of relation
+    varattno: attribute number (col?)
+    vartype: oid of type
+Range table entry:
+    relid: OID of relation
+    eref: expanded reference name. names of cols.
+
+All nodes in planned statement.
+
+Voltdb EE:
+
+In plannodes/plannodefragment.cpp
+PlanNodeFragment::createFromCatalog : parsing from JSON into plan node fragment.
+
+In execution/VoltDBEngine.cpp
+getExecutorVectorForFragmentId: where the executors get initialized, including INLINE_NODES.
+Are projection nodes like target entries in postgres??
+
+line 1185
+There seems to be a bug in voltdb fragment cache --
+    if found in cache, it is placed in least recently accessed position?
+
+There seems to be hierarchical node structure with some duplication? Executors are run in sequence (in order of
+dependency, but they may need access to children nodes to build output schema, for example).
+
+Voltdb Frontend:
+
+f/o/v/i/BaseInitator.java: creates Site
+f/o/v/i/Site.java: initializes EE, loads catalog. has procedureRunners. executeSysProc uses procedureRunner to execute procedure.
+f/o/v/ProcedureRunner.java: voltexecuteSql. loadTable is for bulk loading.
+
+VoltDB json format for query plan (simple select):
+
+{
+   "PLAN_NODES":[
+      {
+         "ID":1,
+         "PLAN_NODE_TYPE":"SEND",
+         "CHILDREN_IDS":[
+            2
+         ]
+      },
+      {
+         "ID":2,
+         "PLAN_NODE_TYPE":"SEQSCAN",
+         "INLINE_NODES":[
+            {
+               "ID":0,
+               "PLAN_NODE_TYPE":"PROJECTION",
+               "OUTPUT_SCHEMA":[
+                  {
+                     "COLUMN_NAME":"TOWN",
+                     "EXPRESSION":{
+                        "TYPE":32,
+                        "VALUE_TYPE":9,
+                        "VALUE_SIZE":128,
+                        "COLUMN_IDX":0
+                     }
+                  },
+                  {
+                     "COLUMN_NAME":"COUNTY",
+                     "EXPRESSION":{
+                        "TYPE":32,
+                        "VALUE_TYPE":9,
+                        "VALUE_SIZE":64,
+                        "COLUMN_IDX":1
+                     }
+                  },
+                  {
+                     "COLUMN_NAME":"STATE",
+                     "EXPRESSION":{
+                        "TYPE":32,
+                        "VALUE_TYPE":9,
+                        "VALUE_SIZE":2,
+                        "COLUMN_IDX":2
+                     }
+                  }
+               ]
+            }
+         ],
+         "TARGET_TABLE_NAME":"TOWNS",
+         "TARGET_TABLE_ALIAS":"TOWNS"
+      }
+   ],
+   "EXECUTE_LIST":[
+      2,
+      1
+   ]
+}
