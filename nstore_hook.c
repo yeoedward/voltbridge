@@ -4,6 +4,8 @@
 #include "nodes/print.h"
 #include "voltdb_bridge.hpp"
 
+#include <stdio.h>
+
 PG_MODULE_MAGIC;
 
 /* Saved hook values in case of unload */
@@ -16,13 +18,14 @@ void		_PG_init(void);
 void		_PG_fini(void);
 
 static void nstore_ExecutorStart(QueryDesc *queryDesc, int eflags);
-static void nstore_ExecutorRun(QueryDesc *queryDesc,
+static void nstore_ExecutorRun(
+        QueryDesc *queryDesc,
         ScanDirection direction,
         long count);
 static void nstore_ExecutorFinish(QueryDesc *queryDesc);
 static void nstore_ExecutorEnd(QueryDesc *queryDesc);
 
-static duck *d;
+static ee_t *ee;
 
 void
 _PG_init(void)
@@ -36,7 +39,8 @@ _PG_init(void)
 	ExecutorFinish_hook = nstore_ExecutorFinish;
 	prev_ExecutorEnd = ExecutorEnd_hook;
 	ExecutorEnd_hook = nstore_ExecutorEnd;
-    d = new_duck(2);
+    printf("Intalling nstore hook.\n");
+    ee = new_ee();
 }
 
 /*
@@ -50,8 +54,11 @@ _PG_fini(void)
 	ExecutorRun_hook = prev_ExecutorRun;
 	ExecutorFinish_hook = prev_ExecutorFinish;
 	ExecutorEnd_hook = prev_ExecutorEnd;
-    delete_duck(d);
+    //printf("Uninstalling nstore hook.");
+    delete_ee(ee);
 }
+
+//TODO Currently segfaulting if we don't run the standard executor functions.
 
 /*
  * ExecutorStart hook: start up logging if needed
@@ -59,11 +66,8 @@ _PG_fini(void)
 static void
 nstore_ExecutorStart(QueryDesc *queryDesc, int eflags)
 {
-	if (prev_ExecutorStart)
-		prev_ExecutorStart(queryDesc, eflags);
-	else
-		standard_ExecutorStart(queryDesc, eflags);
-    pprint(queryDesc->plannedstmt);
+    //pprint(queryDesc->plannedstmt);
+    standard_ExecutorStart(queryDesc, eflags);
 }
 
 /*
@@ -72,11 +76,10 @@ nstore_ExecutorStart(QueryDesc *queryDesc, int eflags)
 static void
 nstore_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, long count)
 {
-    if (prev_ExecutorRun)
-        prev_ExecutorRun(queryDesc, direction, count);
-    else
-        standard_ExecutorRun(queryDesc, direction, count);
-    duck_quack(d, 1000);
+    // Plan is typedef'd to an int and is ignored atm.
+    plan_t plan = 0;
+    ee_execute_plan(ee, &plan);
+    standard_ExecutorRun(queryDesc, direction, count);
 }
 
 /*
@@ -85,10 +88,7 @@ nstore_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, long count)
 static void
 nstore_ExecutorFinish(QueryDesc *queryDesc)
 {
-    if (prev_ExecutorFinish)
-        prev_ExecutorFinish(queryDesc);
-    else
-        standard_ExecutorFinish(queryDesc);
+    standard_ExecutorFinish(queryDesc);
 }
 
 /*
@@ -97,8 +97,5 @@ nstore_ExecutorFinish(QueryDesc *queryDesc)
 static void
 nstore_ExecutorEnd(QueryDesc *queryDesc)
 {
-	if (prev_ExecutorEnd)
-		prev_ExecutorEnd(queryDesc);
-	else
-		standard_ExecutorEnd(queryDesc);
+    standard_ExecutorEnd(queryDesc);    
 }

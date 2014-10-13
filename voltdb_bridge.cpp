@@ -1,41 +1,82 @@
-#include <iostream>
-
-#include "execution/VoltDBEngine.h"
-
 #include "voltdb_bridge.hpp"
+#include "hardcoded.h"
 
+#include <execution/VoltDBEngine.h>
+#include <iostream>
+#include <string>
 
 using namespace std;
 
-struct duck {};
+struct ee_t {};
 
-class Duck : public duck {
+class VoltDB : public ee_t {
     public:
-        Duck(int feet);
-        ~Duck();
-        void quack(float volume);
+        VoltDB();
+        ~VoltDB();
+        void executePlan(plan_t *plan);
     private:
-        int feet;
+        voltdb::VoltDBEngine m_engine;
 };
 
-inline Duck* real(duck* d) { return static_cast<Duck*>(d); }
-duck* new_duck(int feet) { return new Duck(feet); }
-void delete_duck(duck* d) { delete real(d); }
-void duck_quack(duck* d, float volume) { real(d)->quack(volume); }
+/*
+ * C functions.
+ */
 
-Duck::Duck(int feet) {
-    this->feet = feet;
+inline VoltDB* real(ee_t *ee) {
+    return static_cast<VoltDB *>(ee);
 }
 
-Duck::~Duck() {
+ee_t *new_ee() {
+    return new VoltDB();
+}
+
+void delete_ee(ee_t *ee) {
+    delete real(ee);
+}
+
+void ee_execute_plan(ee_t *ee, plan_t *plan) {
+    real(ee)->executePlan(plan);
+}
+
+/*
+ * VoltDB bridging code.
+ */
+
+VoltDB::VoltDB() {
+    // We might want to rewrite initialize so we don't need
+    // all these dummy values.
+    m_engine.initialize(0, 0, 0, 0, "eddy", 10);
+    m_engine.loadCatalog(0, getCatalogString());
+}
+
+VoltDB::~VoltDB() {
     // Do nothing.
 }
 
-void Duck::quack(float volume) {
-    cout << "Quacked with volume: " << volume << endl;
-    voltdb::VoltDBEngine engine;
-    engine.initialize(0, 0, 0, 0, "eddy", 10);
-    cout << engine.getLogManager() << endl;
-    cout << engine.getTable("PERSONS") << endl;
-    cout << engine.debug() << endl;
+// Has to be a fixed size buffer? What happens if too big?
+// There's some fallback buffer stuff in voltdb.
+#define BUFSIZE 4096
+void VoltDB::executePlan(plan_t *pg_plan) {
+    // Ignore postgres plan for now.
+
+    // Create buffers for voltdb to pass results back in.
+    char parameterBuffer[BUFSIZE] = { 0 };
+    char resultBuffer[BUFSIZE] = { 0 };
+    char exceptionBuffer[BUFSIZE] = { 0 };
+    m_engine.setBuffers(
+        parameterBuffer, BUFSIZE,
+        resultBuffer, BUFSIZE,
+        exceptionBuffer, BUFSIZE);
+
+    m_engine.resetReusedResultOutputBuffer();
+    
+    // Rewrite so that it doesn't need all these default values.
+    m_engine.executeSerializedPlan(1, 0, 0, 0, 0, 0, false, false, getPlan());
+
+    // Print out result for checking.
+    // 58 is a known size.
+    for (int i = 0; i < 58; i++) {
+        cout << resultBuffer[i] << ",";
+    }
+    cout << endl;
 }

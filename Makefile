@@ -1,6 +1,7 @@
+LIBVOLTDB = libvoltdb.so
 MODULE_big = nstore
 OBJS = nstore_hook.o voltdb_bridge.o
-CXXFLAGS+=-fpic -Ivoltdb/src/ee -Ivoltdb/third_party/cpp \
+CXXFLAGS += -fpic -Ivoltdb/src/ee -Ivoltdb/third_party/cpp \
 	-Wall -Wextra -Werror -Woverloaded-virtual \
 	-Wpointer-arith -Wcast-qual -Wwrite-strings \
 	-Winit-self -Wno-sign-compare -Wno-unused-parameter \
@@ -9,8 +10,8 @@ CXXFLAGS+=-fpic -Ivoltdb/src/ee -Ivoltdb/third_party/cpp \
 	-fvisibility=default \
 	-DBOOST_SP_DISABLE_THREADS -DBOOST_DISABLE_THREADS -DBOOST_ALL_NO_LIB \
 	-Wno-ignored-qualifiers
-SHLIB_LINK=-lstdc++ -L. -lvoltdb
-EXTRA_CLEAN=voltdb.so
+SHLIB_LINK = -lstdc++ -L. -lvoltdb
+EXTRA_CLEAN = $(LIBVOLTDB)
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config
@@ -26,10 +27,10 @@ endif
 install: cp_voltdb_so
 
 cp_voltdb_so:
-	cp libvoltdb.so $(top_builddir)/install/lib/
+	cp $(LIBVOLTDB) $(top_builddir)/install/lib/
 
-voltdb_bridge.o: libvoltdb.so
+voltdb_bridge.o: hardcoded.h $(LIBVOLTDB)
 
-libvoltdb.so:
-	#ant -buildfile voltdb/build.xml ee
-	cp voltdb/voltdb/libvoltdb-4.7.so libvoltdb.so
+$(LIBVOLTDB):
+	ant -buildfile voltdb/build.xml ee
+	cp voltdb/voltdb/libvoltdb-4.7.so $(LIBVOLTDB)

@@ -1,6 +1,4 @@
 TODO:
-Figure out how to properly initialize voltdb.
-
 Hardcode update catalog and query nodes for insert and select.
 Run insert and select.
 
