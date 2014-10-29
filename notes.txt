@@ -1,9 +1,16 @@
-TODO:
-Hardcode update catalog and query nodes for insert and select.
-Run insert and select.
+Eddy's notes
+===========
 
-Map catalog for real.
-Map nodes for real.
+TODO:
+Deserialize voltdb result buffer and send information to dest.
+    Create heaptuple (hardcode first).
+    Intercept dest from main pg execution.
+    Ensure that we can output stuff.
+    Dump volt table into heaptuple.
+
+Convert postgres plan nodes to voltdb executors.
+    Map catalog.
+    Intercept catalog lookups in planner and dest.
 
 Postgres:
 

@@ -39,6 +39,7 @@ _PG_init(void)
 	ExecutorFinish_hook = nstore_ExecutorFinish;
 	prev_ExecutorEnd = ExecutorEnd_hook;
 	ExecutorEnd_hook = nstore_ExecutorEnd;
+    
     printf("Intalling nstore hook.\n");
     ee = new_ee();
 }
@@ -54,11 +55,9 @@ _PG_fini(void)
 	ExecutorRun_hook = prev_ExecutorRun;
 	ExecutorFinish_hook = prev_ExecutorFinish;
 	ExecutorEnd_hook = prev_ExecutorEnd;
-    //printf("Uninstalling nstore hook.");
+    printf("Uninstalling nstore hook.");
     delete_ee(ee);
 }
-
-//TODO Currently segfaulting if we don't run the standard executor functions.
 
 /*
  * ExecutorStart hook: start up logging if needed
@@ -66,7 +65,7 @@ _PG_fini(void)
 static void
 nstore_ExecutorStart(QueryDesc *queryDesc, int eflags)
 {
-    //pprint(queryDesc->plannedstmt);
+    pprint(queryDesc->plannedstmt);
     standard_ExecutorStart(queryDesc, eflags);
 }
 
@@ -76,10 +75,18 @@ nstore_ExecutorStart(QueryDesc *queryDesc, int eflags)
 static void
 nstore_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, long count)
 {
-    // Plan is typedef'd to an int and is ignored atm.
-    plan_t plan = 0;
-    ee_execute_plan(ee, &plan);
     standard_ExecutorRun(queryDesc, direction, count);
+
+    // Plan is typedef'd to an int and is ignored atm.
+    //plan_t plan = 0;
+    //DestReceiver *dest = queryDesc->dest;
+
+    //ee_execute_plan(ee, &plan);
+
+    //TODO Using hooks is not very clean. There are contracts in place that rely
+    // on the executor functions being called.
+    //(*dest->rStartup) (dest, queryDesc->operation, queryDesc->tupDesc);
+    //(*dest->rShutdown) (dest);
 }
 
 /*
