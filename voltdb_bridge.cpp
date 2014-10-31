@@ -10,9 +10,12 @@
 // Postgres includes.
 extern "C" {
 #include <postgres.h>
+#include <access/htup_details.h>
 #include <access/tupdesc.h>
 #include <catalog/pg_type.h>
+#include <executor/execdesc.h>
 #include <executor/tuptable.h>
+#include <nodes/print.h>
 }
 
 // Stdlib includes.
@@ -27,10 +30,13 @@ class VoltDB : public ee_t {
     public:
         VoltDB();
         ~VoltDB();
-        void executePlan(plan_t *plan);
+        void executePlan(QueryDesc *queryDesc);
     private:
         voltdb::VoltDBEngine m_engine;
-        void sendBuffer(const char *raw_buffer);
+        void sendBuffer(
+                const char *raw_buffer,
+                bool sendTuples,
+                DestReceiver *dest);
 };
 
 /*
@@ -49,8 +55,8 @@ void delete_ee(ee_t *ee) {
     delete real(ee);
 }
 
-void ee_execute_plan(ee_t *ee, plan_t *plan) {
-    real(ee)->executePlan(plan);
+void ee_execute_plan(ee_t *ee, QueryDesc *queryDesc) {
+    real(ee)->executePlan(queryDesc);
 }
 
 /*
@@ -60,7 +66,7 @@ void ee_execute_plan(ee_t *ee, plan_t *plan) {
 VoltDB::VoltDB() : m_engine(NULL, NULL) {
     // TODO rewrite initialize so we don't need
     // all these dummy values.
-    m_engine.initialize(0, 0, 0, 0, "eddy", 10);
+    m_engine.initialize(0, 0, 0, 0, "", 10);
     m_engine.loadCatalog(0, getCatalogString());
 }
 
@@ -73,7 +79,7 @@ VoltDB::~VoltDB() {
 // Allocating on the stack for now until we figure out the memory
 // context stuff in postgres.
 #define BUFSIZE 4096
-void VoltDB::executePlan(plan_t *pg_plan) {
+void VoltDB::executePlan(QueryDesc *queryDesc) {
     // Ignore postgres plan for now.
 
     // Create buffers for voltdb to pass results back in.
@@ -96,10 +102,29 @@ void VoltDB::executePlan(plan_t *pg_plan) {
         cout << ((int) resultBuffer[i]) << ",";
     }
     cout << endl << flush;
-    sendBuffer(resultBuffer);
+
+    CmdType operation = queryDesc->operation;
+    DestReceiver *dest = queryDesc->dest;
+    bool sendTuples = (queryDesc->operation == CMD_SELECT ||
+            queryDesc->plannedstmt->hasReturning);
+
+    // Startup dest.
+    if (sendTuples)
+        (*dest->rStartup) (dest, operation, queryDesc->tupDesc);
+
+    // sendBuffer will send slots to dest.
+    sendBuffer(resultBuffer, sendTuples, queryDesc->dest);
+
+    // Shutdown dest.
+    if (sendTuples)
+        (*dest->rShutdown) (dest);
+
 }
 
-void VoltDB::sendBuffer(const char *raw_buffer) {
+void VoltDB::sendBuffer(
+        const char *raw_buffer,
+        bool sendTuples,
+        DestReceiver *dest) {
     // TODO Check if fallback buffer was used?
     voltdb::ReferenceSerializeInputBE buffer(raw_buffer, BUFSIZE);
     int totalSize = buffer.readInt();
@@ -115,26 +140,29 @@ void VoltDB::sendBuffer(const char *raw_buffer) {
     const char *serializedTable = buffer.getRawPointer(tableSize);
     (void) serializedTable;
     //TODO Make sure that the slot is allocated in the right pg memory context.
-    int natts = 1;
+    int natts = 2;
     TupleDesc tupdesc = CreateTemplateTupleDesc(natts, false);
-    int varchar_len = 100;
+    int typmod = -1;
     // 0 because varchar is not an array type.
-    int attdim = 0;
+    int attdim = -1;
     TupleDescInitEntry(tupdesc,
             1,
             "First name",
-            VARCHAROID,
-            varchar_len,
+            CSTRINGOID,
+            typmod,
             attdim);
     TupleDescInitEntry(tupdesc,
             2,
             "Last name",
-            VARCHAROID,
-            varchar_len,
+            CSTRINGOID,
+            typmod,
             attdim);
     TupleTableSlot *slot = MakeSingleTupleTableSlot(tupdesc);
     ExecSetSlotDescriptor(slot, tupdesc);
-    //TODO Create heaptuple using serializedTable and add it to the slot.
-    // Look at the seqscan case in the executor.
-    //TODO Send the slot off to dest. Need to comment out dest stuff in main pg executor.
+    Datum values[] = {CStringGetDatum("Justin"), CStringGetDatum("Bieber")};
+    bool isnull[] = {false, false};
+    HeapTuple tuple = heap_form_tuple(tupdesc, values, isnull);
+    ExecStoreTuple(tuple, slot, InvalidBuffer, true);
+    if (sendTuples)
+        (*dest->receiveSlot) (slot, dest);
 }

@@ -75,18 +75,12 @@ nstore_ExecutorStart(QueryDesc *queryDesc, int eflags)
 static void
 nstore_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, long count)
 {
+
     standard_ExecutorRun(queryDesc, direction, count);
-
-    // Plan is typedef'd to an int and is ignored atm.
-    //plan_t plan = 0;
-    //DestReceiver *dest = queryDesc->dest;
-
-    //ee_execute_plan(ee, &plan);
+    ee_execute_plan(ee, queryDesc);
 
     //TODO Using hooks is not very clean. There are contracts in place that rely
     // on the executor functions being called.
-    //(*dest->rStartup) (dest, queryDesc->operation, queryDesc->tupDesc);
-    //(*dest->rShutdown) (dest);
 }
 
 /*

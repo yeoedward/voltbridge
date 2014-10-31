@@ -2,15 +2,7 @@ Eddy's notes
 ===========
 
 TODO:
-Deserialize voltdb result buffer and send information to dest.
-    Create heaptuple (hardcode first).
-    Intercept dest from main pg execution.
-    Ensure that we can output stuff.
-    Dump volt table into heaptuple.
-
-Convert postgres plan nodes to voltdb executors.
-    Map catalog.
-    Intercept catalog lookups in planner and dest.
+Sync up postgres and voltdb catalogs.
 
 Postgres:
 
