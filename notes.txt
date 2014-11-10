@@ -2,7 +2,11 @@ Eddy's notes
 ===========
 
 TODO:
-Sync up postgres and voltdb catalogs.
+Sync up postgres and voltdb catalogs. Use hardcoded mappings for now.
+    Deserialize volt table and send to postgres frontend.
+        Instead of deserializing, why not just return the tuple table or
+        tuples? Look into this!
+    Map plan nodes from pg to volt.
 
 Postgres:
 
@@ -20,6 +24,10 @@ Range table entry:
 All nodes in planned statement.
 
 Voltdb EE:
+Figure out where the volt catalog comes in.
+    loadCatalog, updateCatalog.
+    plan nodes -- Uses catalog table in schemas when generating output
+        tables and stuff.
 
 In plannodes/plannodefragment.cpp
 PlanNodeFragment::createFromCatalog : parsing from JSON into plan node fragment.

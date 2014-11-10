@@ -6,6 +6,7 @@
 // VoltDB includes.
 #include <common/serializeio.h>
 #include <execution/VoltDBEngine.h>
+#include <storage/table.h>
 
 // Postgres includes.
 extern "C" {
@@ -94,7 +95,9 @@ void VoltDB::executePlan(QueryDesc *queryDesc) {
     m_engine.resetReusedResultOutputBuffer();
     
     // Rewrite so that it doesn't need all these default values.
-    m_engine.executeSerializedPlan(1, 0, 0, 0, 0, 0, true, true, getPlan());
+    voltdb::Table *table =
+        m_engine.executeSerializedPlan(1, 0, 0, 0, 0, 0, true, true, getPlan());
+    (void) table;
 
     // Print out result for checking.
     // 58 is a known size.
@@ -121,6 +124,7 @@ void VoltDB::executePlan(QueryDesc *queryDesc) {
 
 }
 
+//TODO Change to send table.
 void VoltDB::sendBuffer(
         const char *raw_buffer,
         bool sendTuples,
@@ -137,8 +141,22 @@ void VoltDB::sendBuffer(
          << "numdeps = " << numdeps << ", "
          << "depid = " << depid << ", "
          << "tableSize = " << tableSize << endl << flush;
-    const char *serializedTable = buffer.getRawPointer(tableSize);
-    (void) serializedTable;
+
+    /*
+     * Deserializing logic from VoltTable.java.
+     * TODO Use voltdb::Table instead. No need to deserialize buffer.
+     */
+
+    // rowstart represents offset to the start of row data, but non-inclusive
+    // of the length of the header, so add 4 bytes.
+    int rowStart = buffer.readInt() + 4;
+    buffer.setPosition(5);
+    short int colCount = buffer.readShort();
+    buffer.setPosition(rowStart);
+    int rowCount = buffer.readInt();
+    (void) colCount;
+    (void) rowCount;
+
     //TODO Make sure that the slot is allocated in the right pg memory context.
     int natts = 2;
     TupleDesc tupdesc = CreateTemplateTupleDesc(natts, false);
