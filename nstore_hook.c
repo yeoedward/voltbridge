@@ -65,7 +65,7 @@ _PG_fini(void)
 static void
 nstore_ExecutorStart(QueryDesc *queryDesc, int eflags)
 {
-    pprint(queryDesc->plannedstmt);
+    //pprint(queryDesc->plannedstmt);
     standard_ExecutorStart(queryDesc, eflags);
 }
 
